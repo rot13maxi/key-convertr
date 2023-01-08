@@ -121,7 +121,7 @@ fi
 url="$url/releases"
 
 if [ -z "$tag" ]; then
-    tag=$(curl -s "$url/latest" | cut -d'"' -f2 | rev | cut -d'/' -f1 | rev)
+    tag=$(curl "https://api.github.com/repos/$git/releases/latest" | grep "tag_name" | cut -d'"' -f4)
     say_err "Tag: latest ($tag)"
 else
     say_err "Tag: $tag"
