@@ -10,7 +10,7 @@ env:
 
 jobs:
   # This job downloads and stores `cross` as an artifact, so that it can be
-  # redownloaded across all of the jobs. Currently this copied pasted between
+  # re-downloaded across all of the jobs. Currently this copied pasted between
   # `mean_bean_ci.yml` and `mean_bean_deploy.yml`. Make sure to update both places when making
   # changes.
   install-cross:
@@ -26,7 +26,7 @@ jobs:
           repo: cross
           matches: ${{ matrix.platform }}
           token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: actions/upload-artifact@v1
+      - uses: actions/upload-artifact@v3
         with:
           name: cross-${{ matrix.platform }}
           path: ${{ steps.cross.outputs.install_path }}
@@ -202,7 +202,7 @@ jobs:
         uses: dawidd6/action-get-tag@v1
 
       - uses: actions/checkout@v3
-      - uses: actions/download-artifact@v1
+      - uses: actions/download-artifact@v3
         with:
           name: cross-linux-musl
           path: /tmp/
