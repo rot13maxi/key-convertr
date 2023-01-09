@@ -31,13 +31,12 @@ fn main() {
 
     if args.to_hex && args.kind.is_some() {
         println!("provide either `--to-hex` OR a `--kind` to convert to. one or the other.");
-        return
+        return;
     }
 
     if args.to_hex {
         let (_, data, _) = bech32::decode(&args.key).expect("could not decode data");
         println!("{}", hex::encode(Vec::<u8>::from_base32(&data).unwrap()));
-        return;
     } else {
         let hrp = match args.kind.unwrap() {
             Prefix::Npub => "npub",
