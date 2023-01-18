@@ -18,8 +18,12 @@ struct Args {
     #[arg(long, help = "you want to convert from bech32 to hex")]
     to_hex: bool,
 
-    #[arg(help = "the key or note id that you want to convert")]
-    key: String,
+    #[arg(
+        use_value_delimiter = true,
+        value_delimiter = ',',
+        help = "the key/s or note id/s that you want to convert"
+    )]
+    keys: Vec<String>,
 }
 
 fn main() {
@@ -35,23 +39,28 @@ fn main() {
     }
 
     if args.to_hex {
-        let (_, data, _) = bech32::decode(&args.key).expect("could not decode data");
-        println!("{}", hex::encode(Vec::<u8>::from_base32(&data).unwrap()));
+        // convert npub to hex (accepts comma separated list of npubs)
+        for s in &args.keys {
+            let (_, data, _) = bech32::decode(s).expect("could not decode data");
+            println!("{}", hex::encode(Vec::<u8>::from_base32(&data).unwrap()));
+        }
     } else {
+        // convert hex to npub (accepts comma separated list of hex)
         let hrp = match args.kind.unwrap() {
             Prefix::Npub => "npub",
             Prefix::Nsec => "nsec",
             Prefix::Note => "note",
         };
-
-        let encoded = bech32::encode(
-            hrp,
-            hex::decode(args.key)
-                .expect("could not decode provided kay/note")
-                .to_base32(),
-            Variant::Bech32,
-        )
-        .expect("Could not bech32-encode data");
-        println!("{}", encoded);
+        for s in &args.keys {
+            let encoded = bech32::encode(
+                hrp,
+                hex::decode(s)
+                    .expect("could not decode provided key/note")
+                    .to_base32(),
+                Variant::Bech32,
+            )
+            .expect("Could not bech32-encode data");
+            println!("{}", encoded);
+        }
     }
 }
