@@ -6,12 +6,19 @@ This is kind of bonkers, so here's a command-line utility that you can run to co
 
 ## Installation
 ### Building with Cargo
-If you have `cargo` installed, then from the `key-convertr` directory, just do `cargo install --path .`. It will put a program called `key-convertr` in your `$HOME/.cargo/bin` directory. 
+If you have `cargo` installed, then from the `key-convertr` directory, just do `cargo install --path .`. It will put a program called `key-convertr` in your `$HOME/.cargo/bin` directory.
 
 Then, to convert from a hex-encoded pubkey to a bech32-encoded pubkey, you can do
 
 ```shell
 $> key-convertr --kind npub 3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d
+npub180cvv07tjdrrgpa0j7j7tmnyl2yr6yr7l8j4s3evf6u64th6gkwsyjh6w6
+```
+
+### Running with Docker
+If you have docker installed, you can simply do `docker run --rm ghcr.io/rot13maxi/key-convertr:main` to download and run the latest `main` revision of the tool. Then just follow the instructions below. For example,
+```shell
+$> docker run --rm ghcr.io/rot13maxi/key-convertr:main --kind npub 3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d
 npub180cvv07tjdrrgpa0j7j7tmnyl2yr6yr7l8j4s3evf6u64th6gkwsyjh6w6
 ```
 
