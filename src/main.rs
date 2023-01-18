@@ -34,8 +34,6 @@ fn main() {
         return;
     }
 
-    println!(""); // create space between inputs/outputs
-
     if args.to_hex {
         // convert npub to hex (accepts comma separated list of npubs)
         let split = args.key.as_str().trim_end().split(",");
