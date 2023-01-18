@@ -18,7 +18,11 @@ struct Args {
     #[arg(long, help = "you want to convert from bech32 to hex")]
     to_hex: bool,
 
-    #[arg(use_value_delimiter = true, value_delimiter = ',', help = "the key/s or note id/s that you want to convert")]
+    #[arg(
+        use_value_delimiter = true,
+        value_delimiter = ',',
+        help = "the key/s or note id/s that you want to convert"
+    )]
     keys: Vec<String>,
 }
 
