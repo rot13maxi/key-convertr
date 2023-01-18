@@ -34,24 +34,33 @@ fn main() {
         return;
     }
 
+    println!(""); // create space between inputs/outputs
+
     if args.to_hex {
-        let (_, data, _) = bech32::decode(&args.key).expect("could not decode data");
-        println!("{}", hex::encode(Vec::<u8>::from_base32(&data).unwrap()));
+        // convert npub to hex (accepts comma separated list of npubs)
+        let split = args.key.as_str().trim_end().split(",");
+        for s in split {
+            let (_, data, _) = bech32::decode(s).expect("could not decode data");
+            println!("{}", hex::encode(Vec::<u8>::from_base32(&data).unwrap()));
+        }
     } else {
+        // convert hex to npub (accepts comma separated list of hex)
+        let split = args.key.as_str().trim_end().split(",");
         let hrp = match args.kind.unwrap() {
             Prefix::Npub => "npub",
             Prefix::Nsec => "nsec",
             Prefix::Note => "note",
         };
-
-        let encoded = bech32::encode(
-            hrp,
-            hex::decode(args.key)
-                .expect("could not decode provided kay/note")
-                .to_base32(),
-            Variant::Bech32,
-        )
-        .expect("Could not bech32-encode data");
-        println!("{}", encoded);
+        for s in split {
+            let encoded = bech32::encode(
+                hrp,
+                hex::decode(s)
+                    .expect("could not decode provided key/note")
+                    .to_base32(),
+                Variant::Bech32,
+            )
+            .expect("Could not bech32-encode data");
+            println!("{}", encoded);
+        }
     }
 }
