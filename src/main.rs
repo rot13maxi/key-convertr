@@ -18,8 +18,8 @@ struct Args {
     #[arg(long, help = "you want to convert from bech32 to hex")]
     to_hex: bool,
 
-    #[arg(help = "the key or note id that you want to convert")]
-    key: String,
+    #[arg(use_value_delimiter = true, value_delimiter = ',', help = "the key/s or note id/s that you want to convert")]
+    keys: Vec<String>,
 }
 
 fn main() {
@@ -36,20 +36,18 @@ fn main() {
 
     if args.to_hex {
         // convert npub to hex (accepts comma separated list of npubs)
-        let split = args.key.as_str().trim_end().split(',');
-        for s in split {
+        for s in &args.keys {
             let (_, data, _) = bech32::decode(s).expect("could not decode data");
             println!("{}", hex::encode(Vec::<u8>::from_base32(&data).unwrap()));
         }
     } else {
         // convert hex to npub (accepts comma separated list of hex)
-        let split = args.key.as_str().trim_end().split(',');
         let hrp = match args.kind.unwrap() {
             Prefix::Npub => "npub",
             Prefix::Nsec => "nsec",
             Prefix::Note => "note",
         };
-        for s in split {
+        for s in &args.keys {
             let encoded = bech32::encode(
                 hrp,
                 hex::decode(s)
