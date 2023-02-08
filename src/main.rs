@@ -1,6 +1,7 @@
 use bech32::{FromBase32, ToBase32, Variant};
 use clap::error::ErrorKind;
 use clap::{command, ArgGroup, CommandFactory, Parser};
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 
@@ -10,6 +11,7 @@ enum Prefix {
     Nsec,
     Note,
 }
+
 // Display 'trait' needed for enum "to_string()"
 impl std::fmt::Display for Prefix {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -92,6 +94,7 @@ async fn main() {
             println!("{encoded}");
         }
     } else if args.nip5.is_some() {
+        validate_domains(&args.nip5);
         for nip5_domain in &args.nip5.unwrap() {
             let _result = fetch_nostr_json(nip5_domain.to_string()).await;
             let nip5_ids: Nip5Id = _result.expect(
@@ -142,4 +145,29 @@ async fn fetch_nostr_json(nip5_domain: String) -> Result<Nip5Id, reqwest::Error>
         .json()
         .await?;
     Ok(json)
+}
+
+/// Validates all domain inputs from "--nip5" are valid
+fn validate_domains(domains: &Option<Vec<String>>) {
+    match domains {
+        Some(domain_list) => {
+            for domain in domain_list {
+                if !is_valid_domain_name(domain) {
+                    Args::command() //  in the event of an args bug, this will print an error and exit
+                        .error(
+                            ErrorKind::InvalidValue,
+                            format!("NIP5 domains - invalid domain name detected: {}", domain),
+                        )
+                        .exit();
+                }
+            }
+        }
+        None => println!("No domains provided"),
+    }
+}
+
+/// Ensures string is valid domain name format
+fn is_valid_domain_name(domain: &str) -> bool {
+    let domain_regex = Regex::new(r"(?i)^([a-z0-9]+(-[a-z0-9]+)*\.)+[a-z]{2,}$").unwrap();
+    domain_regex.is_match(domain)
 }
