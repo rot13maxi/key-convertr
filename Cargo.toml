@@ -9,6 +9,7 @@ edition = "2021"
 bech32 = "0.9.1"
 clap = { version = "4.1.4", features = ["derive"] }
 hex = "0.4.3"
+regex = "1.7.1"
 reqwest = { version = "0.11.14", features = ["json"] }
 serde = { version = "1.0.152", features = ["derive"] }
 tokio = { version = "1.25.0", features = ["full"] }
