@@ -3,7 +3,7 @@ use clap::error::ErrorKind;
 use clap::{command, ArgGroup, CommandFactory, Parser};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 
 #[derive(clap::ValueEnum, Clone, Debug, Copy)]
 enum Prefix {
@@ -25,7 +25,7 @@ impl std::fmt::Display for Prefix {
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Nip5Id {
-    names: HashMap<String, String>,
+    names: BTreeMap<String, String>,
 }
 
 #[derive(Parser, Debug)]
@@ -100,17 +100,12 @@ async fn main() {
             let nip5_ids: Nip5Id = _result.expect(
                 &("Error while fetching nostr.json from nip5-domain=".to_owned() + nip5_domain),
             );
-            // using btreemap to keep things sorted by keys for final result
-            let mut map: BTreeMap<String, String> = BTreeMap::new();
-            for name in &nip5_ids.names {
-                map.insert(name.0.to_string(), bech32_encode(Prefix::Npub, name.1));
-            }
-            for (key, value) in &map {
+            for (key, value) in &nip5_ids.names {
                 println!("{key},{value}");
             }
             // optional flag based stats
             if args.nip_stats {
-                println!("domain={}|count={}", nip5_domain, map.len());
+                println!("domain={}|count={}", nip5_domain, nip5_ids.names.len());
             }
         }
     } else {
@@ -153,10 +148,10 @@ fn validate_domains(domains: &Option<Vec<String>>) {
         Some(domain_list) => {
             for domain in domain_list {
                 if !is_valid_domain_name(domain) {
-                    Args::command() //  in the event of an args bug, this will print an error and exit
+                    Args::command()
                         .error(
                             ErrorKind::InvalidValue,
-                            format!("NIP5 domains - invalid domain name detected: {}", domain),
+                            format!("NIP5 domains - invalid domain name detected: {domain}"),
                         )
                         .exit();
                 }
