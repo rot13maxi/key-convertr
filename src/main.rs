@@ -101,7 +101,7 @@ async fn main() {
                 &("Error while fetching nostr.json from nip5-domain=".to_owned() + nip5_domain),
             );
             for (key, value) in &nip5_ids.names {
-                println!("{key},{value}");
+                println!("{key},{}", bech32_encode(Prefix::Npub, value));
             }
             // optional flag based stats
             if args.nip_stats {
