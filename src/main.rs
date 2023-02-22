@@ -1,9 +1,14 @@
+use std::collections::BTreeMap;
+
+use anyhow::Result;
 use bech32::{FromBase32, ToBase32, Variant};
 use clap::error::ErrorKind;
 use clap::{command, ArgGroup, CommandFactory, Parser};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use thiserror::Error;
+
+use crate::DomainValidationError::{InvalidDomain, NoDomains};
 
 #[derive(clap::ValueEnum, Clone, Debug, Copy)]
 enum Prefix {
@@ -77,15 +82,16 @@ struct Args {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<()> {
     let args = Args::parse();
 
     if args.to_hex {
         // convert bech32 npub/nsec/note to hex (accepts list of bech32's)
         for s in &args.keys {
-            let (_, data, _) = bech32::decode(s).expect("could not decode data");
-            println!("{}", hex::encode(Vec::<u8>::from_base32(&data).unwrap()));
+            let (_, data, _) = bech32::decode(s)?;
+            println!("{}", hex::encode(Vec::<u8>::from_base32(&data)?));
         }
+        Ok(())
     } else if args.kind.is_some() {
         // convert hex to bech32 npub/nsec/note (accepts list of hex)
         let hrp = args.kind.unwrap();
@@ -93,13 +99,10 @@ async fn main() {
             let encoded = bech32_encode(hrp, key);
             println!("{encoded}");
         }
+        Ok(())
     } else if args.nip5.is_some() {
-        validate_domains(&args.nip5);
-        for nip5_domain in &args.nip5.unwrap() {
-            let _result = fetch_nostr_json(nip5_domain.to_string()).await;
-            let nip5_ids: Nip5Id = _result.expect(
-                &("Error while fetching nostr.json from nip5-domain=".to_owned() + nip5_domain),
-            );
+        for nip5_domain in validate_domains(&args.nip5)? {
+            let nip5_ids: Nip5Id = fetch_nostr_json(nip5_domain.to_string()).await?;
             for (key, value) in &nip5_ids.names {
                 println!("{key},{}", bech32_encode(Prefix::Npub, value));
             }
@@ -108,13 +111,16 @@ async fn main() {
                 println!("domain={}|count={}", nip5_domain, nip5_ids.names.len());
             }
         }
+        Ok(())
     } else {
-        Args::command() //  in the event of an args bug, this will print an error and exit
-            .error(
-                ErrorKind::MissingRequiredArgument,
-                "BUG!!! Should not get here, check input args/groups.",
-            )
-            .exit();
+        Err(
+            Args::command() //  in the event of an args bug, this will print an error and exit
+                .error(
+                    ErrorKind::MissingRequiredArgument,
+                    "BUG!!! Should not get here, check input args/groups.",
+                )
+                .into(),
+        )
     }
 }
 
@@ -142,23 +148,28 @@ async fn fetch_nostr_json(nip5_domain: String) -> Result<Nip5Id, reqwest::Error>
     Ok(json)
 }
 
+#[derive(Error, Debug)]
+enum DomainValidationError {
+    #[error("No domains provided")]
+    NoDomains,
+    #[error("Invalid domain name: `{0}`")]
+    InvalidDomain(String),
+}
+
 /// Validates all domain inputs from "--nip5" are valid
-fn validate_domains(domains: &Option<Vec<String>>) {
-    match domains {
-        Some(domain_list) => {
-            for domain in domain_list {
-                if !is_valid_domain_name(domain) {
-                    Args::command()
-                        .error(
-                            ErrorKind::InvalidValue,
-                            format!("NIP5 domains - invalid domain name detected: {domain}"),
-                        )
-                        .exit();
-                }
+fn validate_domains(domains: &Option<Vec<String>>) -> Result<Vec<String>, DomainValidationError> {
+    domains
+        .as_ref()
+        .ok_or(NoDomains)?
+        .iter()
+        .map(|domain| {
+            if is_valid_domain_name(domain) {
+                Ok(domain.clone())
+            } else {
+                Err(InvalidDomain(domain.clone()))
             }
-        }
-        None => println!("No domains provided"),
-    }
+        })
+        .collect()
 }
 
 /// Ensures string is valid domain name format
