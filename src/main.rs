@@ -1,14 +1,14 @@
-use std::collections::BTreeMap;
+use crate::DomainValidationError::{InvalidDomain, NoDomains};
+use crate::KeyValidationError::{InvalidKeyDecode, InvalidKeyEncode};
 use anyhow::Result;
 use bech32::{FromBase32, ToBase32, Variant};
 use clap::error::ErrorKind;
 use clap::{command, ArgGroup, CommandFactory, Parser};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use thiserror::Error;
 use tokio::task::JoinHandle;
-use crate::DomainValidationError::{InvalidDomain, NoDomains};
-use crate::KeyValidationError::{InvalidKeyEncode, InvalidKeyDecode};
 
 #[derive(clap::ValueEnum, Clone, Debug, Copy)]
 enum Prefix {
@@ -110,21 +110,31 @@ async fn main() -> Result<()> {
                     .names
                     .iter()
                     .map(|val| {
-                        format!("{},{}", val.0, bech32_encode(Prefix::Npub, val.1).unwrap_or_else(|err| err.to_string()))
+                        format!(
+                            "{},{}",
+                            val.0,
+                            bech32_encode(Prefix::Npub, val.1)
+                                .unwrap_or_else(|err| err.to_string())
+                        )
                     })
                     .collect::<Vec<String>>();
                 if args.nip_stats {
                     //  add stats if '-s' flag enabled
-                    nip5results.push(format!("domain={}|count={}", nip5_domain, nip5_ids.names.len()));
+                    nip5results.push(format!(
+                        "domain={}|count={}",
+                        nip5_domain,
+                        nip5_ids.names.len()
+                    ));
                 }
-                return nip5results
+                return nip5results;
             });
             handles.push(handle);
         }
         for task in handles {
-            task.await.unwrap().iter().for_each(|text| {
-                println!("{}", text)
-            });
+            task.await
+                .unwrap()
+                .iter()
+                .for_each(|text| println!("{}", text));
         }
         Ok(())
     } else {
@@ -150,8 +160,12 @@ enum KeyValidationError {
 impl KeyValidationError {
     fn to_string(&self) -> String {
         match *self {
-            KeyValidationError::InvalidKeyDecode(ref message) => format!("KeyValidationError::InvalidKeyDecode:{}", message),
-            KeyValidationError::InvalidKeyEncode(ref message) => format!("KeyValidationError::InvalidKeyDecode:{}", message),
+            KeyValidationError::InvalidKeyDecode(ref message) => {
+                format!("KeyValidationError::InvalidKeyDecode:{}", message)
+            }
+            KeyValidationError::InvalidKeyEncode(ref message) => {
+                format!("KeyValidationError::InvalidKeyDecode:{}", message)
+            }
         }
     }
 }
@@ -161,11 +175,12 @@ fn bech32_encode(hrp: Prefix, hex_key: &String) -> Result<String, KeyValidationE
     bech32::encode(
         &hrp.to_string(),
         hex::decode(hex_key)
-            .or_else(|_| Err(InvalidKeyDecode(hex_key.to_string())))?
+            .map_err(|_| InvalidKeyDecode(hex_key.to_string()))
+            .unwrap()
             .to_base32(),
         Variant::Bech32,
     )
-    .or_else(|_| Err(InvalidKeyEncode(hex_key.to_string())))
+    .map_err(|_| InvalidKeyEncode(hex_key.to_string()))
 }
 
 /// Makes GET request to NIP-05 domain to get nostr.json, and converts public keys from hex to bech32 format
