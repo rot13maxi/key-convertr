@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-
 use anyhow::Result;
 use bech32::{FromBase32, ToBase32, Variant};
 use clap::error::ErrorKind;
@@ -7,8 +6,9 @@ use clap::{command, ArgGroup, CommandFactory, Parser};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-
+use tokio::task::JoinHandle;
 use crate::DomainValidationError::{InvalidDomain, NoDomains};
+use crate::KeyValidationError::{InvalidKeyEncode, InvalidKeyDecode};
 
 #[derive(clap::ValueEnum, Clone, Debug, Copy)]
 enum Prefix {
@@ -96,20 +96,35 @@ async fn main() -> Result<()> {
         // convert hex to bech32 npub/nsec/note (accepts list of hex)
         let hrp = args.kind.unwrap();
         for key in &args.keys {
-            let encoded = bech32_encode(hrp, key);
+            let encoded = bech32_encode(hrp, key).unwrap();
             println!("{encoded}");
         }
         Ok(())
     } else if args.nip5.is_some() {
-        for nip5_domain in validate_domains(&args.nip5)? {
-            let nip5_ids: Nip5Id = fetch_nostr_json(nip5_domain.to_string()).await?;
-            for (key, value) in &nip5_ids.names {
-                println!("{key},{}", bech32_encode(Prefix::Npub, value));
-            }
-            // optional flag based stats
-            if args.nip_stats {
-                println!("domain={}|count={}", nip5_domain, nip5_ids.names.len());
-            }
+        let valid_domains = validate_domains(&args.nip5)?;
+        let mut handles: Vec<JoinHandle<_>> = Vec::with_capacity(valid_domains.len());
+        for nip5_domain in valid_domains {
+            let handle = tokio::spawn(async move {
+                let nip5_ids = fetch_nostr_json(nip5_domain.to_string()).await.unwrap();
+                let mut nip5results = nip5_ids
+                    .names
+                    .iter()
+                    .map(|val| {
+                        format!("{},{}", val.0, bech32_encode(Prefix::Npub, val.1).unwrap_or_else(|err| err.to_string()))
+                    })
+                    .collect::<Vec<String>>();
+                if args.nip_stats {
+                    //  add stats if '-s' flag enabled
+                    nip5results.push(format!("domain={}|count={}", nip5_domain, nip5_ids.names.len()));
+                }
+                return nip5results
+            });
+            handles.push(handle);
+        }
+        for task in handles {
+            task.await.unwrap().iter().for_each(|text| {
+                println!("{}", text)
+            });
         }
         Ok(())
     } else {
@@ -124,16 +139,33 @@ async fn main() -> Result<()> {
     }
 }
 
+#[derive(Error, Debug)]
+enum KeyValidationError {
+    #[error("could not decode provided key/note id=: `{0}`")]
+    InvalidKeyDecode(String),
+    #[error("could not encode provided key/note id=: `{0}`")]
+    InvalidKeyEncode(String),
+}
+
+impl KeyValidationError {
+    fn to_string(&self) -> String {
+        match *self {
+            KeyValidationError::InvalidKeyDecode(ref message) => format!("KeyValidationError::InvalidKeyDecode:{}", message),
+            KeyValidationError::InvalidKeyEncode(ref message) => format!("KeyValidationError::InvalidKeyDecode:{}", message),
+        }
+    }
+}
+
 /// Converts a hex encoded string to bech32 format for given a Prefix (hrp)
-fn bech32_encode(hrp: Prefix, hex_key: &String) -> String {
+fn bech32_encode(hrp: Prefix, hex_key: &String) -> Result<String, KeyValidationError> {
     bech32::encode(
         &hrp.to_string(),
         hex::decode(hex_key)
-            .expect(&("could not decode provided key/note id=".to_owned() + hex_key))
+            .or_else(|_| Err(InvalidKeyDecode(hex_key.to_string())))?
             .to_base32(),
         Variant::Bech32,
     )
-    .expect("Could not bech32-encode data")
+    .or_else(|_| Err(InvalidKeyEncode(hex_key.to_string())))
 }
 
 /// Makes GET request to NIP-05 domain to get nostr.json, and converts public keys from hex to bech32 format
@@ -146,14 +178,6 @@ async fn fetch_nostr_json(nip5_domain: String) -> Result<Nip5Id, reqwest::Error>
         .json()
         .await?;
     Ok(json)
-}
-
-#[derive(Error, Debug)]
-enum DomainValidationError {
-    #[error("No domains provided")]
-    NoDomains,
-    #[error("Invalid domain name: `{0}`")]
-    InvalidDomain(String),
 }
 
 /// Validates all domain inputs from "--nip5" are valid
@@ -176,4 +200,12 @@ fn validate_domains(domains: &Option<Vec<String>>) -> Result<Vec<String>, Domain
 fn is_valid_domain_name(domain: &str) -> bool {
     let domain_regex = Regex::new(r"(?i)^([a-z0-9]+(-[a-z0-9]+)*\.)+[a-z]{2,}$").unwrap();
     domain_regex.is_match(domain)
+}
+
+#[derive(Error, Debug)]
+enum DomainValidationError {
+    #[error("No domains provided")]
+    NoDomains,
+    #[error("Invalid domain name: `{0}`")]
+    InvalidDomain(String),
 }
