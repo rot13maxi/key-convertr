@@ -5,6 +5,7 @@ This is kind of bonkers, so here's a command-line utility that you can run to co
 
 ## Features:
 >Note: "keys" + "nip5" arguments accept multiple inputs for bulk operations
+- generate new random keypair
 - convert from bech32 (npub/nsec/note) to hex
 - convert from hex to bech32 (npub/nsec/note)
 - supports NIP-05 domain identifiers:
@@ -44,6 +45,17 @@ Just provide the hex-encoded key or note-id and a `--kind` argument. The `kind`s
 - npub
 - nsec
 - note
+
+To generate a `new random keypair`, you can do
+
+```shell
+$> key-convertr --gen-keys
+
+Hex Public Key: c2366301f37d8aad12ab316971dcc30da849a79a7888051b0a8b0756e606421e
+Hex Secret Key: dd115775e70e97a5f130c7587046aac3a690145b087e70faaba7c88d57ff578d
+Bech32 Public Key: npub1cgmxxq0n0k926y4tx95hrhxrpk5ynfu60zyq2xc23vr4desxgg0qxffg34
+Bech32 Secret Key: nsec1m5g4wa08p6t6tufscav8q342cwnfq9zmppl8p74t5lyg64ll27xs27mn0y
+```
 
 To convert from an `bech32(npub/nsec/note) to hex-encoding`, you can do
 
