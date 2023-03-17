@@ -4,7 +4,7 @@ RUN apk add --update cargo
 
 COPY . key-convertr/
 
-RUN cargo install --path key-convertr --root /usr/local/bin
+RUN cargo +nightly -Z sparse-registry install --path key-convertr --root /usr/local/bin
 
 FROM alpine:3.17
 
