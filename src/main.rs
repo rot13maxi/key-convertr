@@ -4,7 +4,10 @@ use anyhow::Result;
 use bech32::{FromBase32, ToBase32, Variant};
 use clap::error::ErrorKind;
 use clap::{command, ArgGroup, CommandFactory, Parser};
+use rand::rngs::OsRng;
+use rand::RngCore;
 use regex::Regex;
+use secp256k1::{PublicKey, Secp256k1, SecretKey};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use thiserror::Error;
@@ -39,7 +42,7 @@ struct Nip5Id {
     //  input error handling: only exactly ONE of 'n' args can be used
     ArgGroup::new("convert_method")
         .required(true)
-        .args(&["kind", "to_hex", "nip5"]),
+        .args(&["kind", "to_hex", "nip5", "gen_keys"]),
 ))]
 struct Args {
     #[arg(
@@ -79,6 +82,12 @@ struct Args {
         help = "nip5 identifiers stats logging"
     )]
     nip_stats: bool,
+
+    #[arg(
+        long,
+        help = "boolean flag indicating to generate new keys and print them in hex and bech32 format"
+    )]
+    gen_keys: bool,
 }
 
 #[tokio::main]
@@ -137,6 +146,31 @@ async fn main() -> Result<()> {
                 .iter()
                 .for_each(|text| println!("{}", text));
         }
+        Ok(())
+    } else if args.gen_keys {
+        // Generate keys and print them in hex and bech32 format
+        let secp = Secp256k1::new();
+
+        let mut bytes = [0u8; 32];
+        let mut rng = OsRng;
+
+        rng.try_fill_bytes(&mut bytes).unwrap();
+
+        // Generate a secret key from random bytes
+        let secret_key = SecretKey::from_slice(&bytes).expect("Error generating secret key");
+
+        // Derive the corresponding public key
+        let (pubkey, _) = PublicKey::from_secret_key(&secp, &secret_key).x_only_public_key();
+        let hex_pubkey = hex::encode(pubkey.serialize());
+        let hex_secret_key = hex::encode(&secret_key[..]);
+
+        let bech32_pubkey = bech32_encode(Prefix::Npub, &hex_pubkey);
+        let bech32_secret_key = bech32_encode(Prefix::Nsec, &hex_secret_key);
+
+        println!("Hex Public Key: {}", hex_pubkey);
+        println!("Hex Secret Key: {}", hex_secret_key);
+        println!("Bech32 Public Key: {}", bech32_pubkey);
+        println!("Bech32 Secret Key: {}", bech32_secret_key);
         Ok(())
     } else {
         Err(
