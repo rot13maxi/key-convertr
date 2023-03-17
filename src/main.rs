@@ -122,6 +122,7 @@ async fn main() -> Result<()> {
         }
         Ok(())
     } else if args.gen_keys {
+        // Generate keys and print them in hex and bech32 format
         let secp = Secp256k1::new();
 
         let mut bytes = [0u8; 32];
@@ -129,8 +130,10 @@ async fn main() -> Result<()> {
 
         rng.try_fill_bytes(&mut bytes).unwrap();
 
+        // Generate a secret key from random bytes
         let secret_key = SecretKey::from_slice(&bytes).expect("Error generating secret key");
 
+        // Derive the corresponding public key
         let (pubkey, _) = PublicKey::from_secret_key(&secp, &secret_key).x_only_public_key();
         let hex_pubkey = hex::encode(pubkey.serialize());
         let hex_secret_key = hex::encode(&secret_key[..]);
