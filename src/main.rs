@@ -126,12 +126,13 @@ async fn main() -> Result<()> {
                         nip5_ids.names.len()
                     ));
                 }
-                return nip5results;
+                nip5results
             });
             handles.push(handle);
         }
         for task in handles {
             task.await
+                .map_err(|err| println!("{}", err))
                 .unwrap()
                 .iter()
                 .for_each(|text| println!("{}", text));
@@ -151,32 +152,17 @@ async fn main() -> Result<()> {
 
 #[derive(Error, Debug)]
 enum KeyValidationError {
-    #[error("could not decode provided key/note id=: `{0}`")]
+    #[error("KeyValidationError::InvalidKeyDecode:could not decode provided key={0}")]
     InvalidKeyDecode(String),
-    #[error("could not encode provided key/note id=: `{0}`")]
+    #[error("KeyValidationError::InvalidKeyEncode:could not encode provided key={0}")]
     InvalidKeyEncode(String),
 }
-
-impl KeyValidationError {
-    fn to_string(&self) -> String {
-        match *self {
-            KeyValidationError::InvalidKeyDecode(ref message) => {
-                format!("KeyValidationError::InvalidKeyDecode:{}", message)
-            }
-            KeyValidationError::InvalidKeyEncode(ref message) => {
-                format!("KeyValidationError::InvalidKeyDecode:{}", message)
-            }
-        }
-    }
-}
-
 /// Converts a hex encoded string to bech32 format for given a Prefix (hrp)
 fn bech32_encode(hrp: Prefix, hex_key: &String) -> Result<String, KeyValidationError> {
     bech32::encode(
         &hrp.to_string(),
         hex::decode(hex_key)
-            .map_err(|_| InvalidKeyDecode(hex_key.to_string()))
-            .unwrap()
+            .map_err(|_| InvalidKeyDecode(hex_key.to_string()))?
             .to_base32(),
         Variant::Bech32,
     )
