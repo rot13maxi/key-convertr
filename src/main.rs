@@ -4,10 +4,10 @@ use anyhow::Result;
 use bech32::{FromBase32, ToBase32, Variant};
 use clap::error::ErrorKind;
 use clap::{command, ArgGroup, CommandFactory, Parser};
-use rand::RngCore;
 use rand::rngs::OsRng;
+use rand::RngCore;
 use regex::Regex;
-use secp256k1::{SecretKey, PublicKey, Secp256k1};
+use secp256k1::{PublicKey, Secp256k1, SecretKey};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -85,7 +85,7 @@ struct Args {
 
     #[arg(
         long,
-        help = "boolean flag indicating to generate new keys and print them in hex and bech32 format",
+        help = "boolean flag indicating to generate new keys and print them in hex and bech32 format"
     )]
     gen_keys: bool,
 }
@@ -94,7 +94,7 @@ struct Args {
 async fn main() -> Result<()> {
     let args = Args::parse();
 
-    if args.to_hex {        
+    if args.to_hex {
         // convert bech32 npub/nsec/note to hex (accepts list of bech32's)
         for s in &args.keys {
             let (_, data, _) = bech32::decode(s)?;
@@ -123,28 +123,27 @@ async fn main() -> Result<()> {
         Ok(())
     } else if args.gen_keys {
         let secp = Secp256k1::new();
-    
+
         let mut bytes = [0u8; 32];
         let mut rng = OsRng;
-    
+
         rng.try_fill_bytes(&mut bytes).unwrap();
-    
+
         let secret_key = SecretKey::from_slice(&bytes).expect("Error generating secret key");
-    
+
         let (pubkey, _) = PublicKey::from_secret_key(&secp, &secret_key).x_only_public_key();
         let hex_pubkey = hex::encode(pubkey.serialize());
         let hex_secret_key = hex::encode(&secret_key[..]);
 
         let bech32_pubkey = bech32_encode(Prefix::Npub, &hex_pubkey);
         let bech32_secret_key = bech32_encode(Prefix::Nsec, &hex_secret_key);
-    
+
         println!("Hex Public Key: {}", hex_pubkey);
         println!("Hex Secret Key: {}", hex_secret_key);
         println!("Bech32 Public Key: {}", bech32_pubkey);
         println!("Bech32 Secret Key: {}", bech32_secret_key);
         Ok(())
-    }
-    else {
+    } else {
         Err(
             Args::command() //  in the event of an args bug, this will print an error and exit
                 .error(
