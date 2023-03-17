@@ -2,6 +2,8 @@ FROM rust:alpine3.17 AS build-env
 
 RUN apk add --update cargo
 
+RUN rustup toolchain install nightly
+
 COPY . key-convertr/
 
 RUN cargo +nightly -Z sparse-registry install --path key-convertr --root /usr/local/bin
